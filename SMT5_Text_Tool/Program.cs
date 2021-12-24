@@ -37,7 +37,19 @@ namespace SMT5_Text_Tool
 
                     for(int i = 0; i< count; i++)
                     {
-                        rd.BaseStream.Seek(0x91, SeekOrigin.Current);
+                        rd.BaseStream.Seek(0x67, SeekOrigin.Current);
+
+                        int check = rd.ReadInt32();
+                        rd.ReadByte();
+                        if (check == 255)
+                        {
+                            wt.WriteLine("[null]");
+                            goto END;
+                        }
+
+
+                        rd.BaseStream.Seek(0x25, SeekOrigin.Current);
+
                         int len = rd.ReadInt32();
 
                         if(len > 0)
@@ -50,6 +62,8 @@ namespace SMT5_Text_Tool
                             string text = Encoding.Unicode.GetString(rd.ReadBytes(len * -2)).Replace("\0", "[0]").Replace("\r", "[r]").Replace("\n", "[n]");
                             wt.WriteLine(text);
                         }
+
+                    END:;
                         rd.BaseStream.Seek(0x140, SeekOrigin.Current);
                     }
                     wt.Close();
@@ -66,6 +80,15 @@ namespace SMT5_Text_Tool
                     foreach(var line in lines)
                     {
                         wt.Write(rd.ReadBytes(0x4E));
+                        rd.BaseStream.Seek(0x19, SeekOrigin.Current);
+                        int check = rd.ReadInt32();
+                        if(check == 255)
+                        {
+                            rd.BaseStream.Seek(-29, SeekOrigin.Current);
+                            wt.Write(rd.ReadBytes(0x1E));
+                            goto ENDTXT;
+                        }
+                        rd.BaseStream.Seek(-29, SeekOrigin.Current);
                         var data = Encoding.Unicode.GetBytes(line.Replace("[0]", "\0").Replace("[r]", "\r").Replace("[n]", "\n"));
                         wt.Write((Int64)(0x36 + data.Length));
                         rd.ReadBytes(8);
@@ -77,6 +100,7 @@ namespace SMT5_Text_Tool
                             rd.ReadBytes(len);
                         else
                             rd.ReadBytes(len * -2);
+                        ENDTXT:;
                         wt.Write(rd.ReadBytes(0x140));
                     }
                     wt.Write(rd.ReadBytes(0x10));
